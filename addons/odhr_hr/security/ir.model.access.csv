@@ -1,1 +1,7 @@
 id,name,model_id:id,group_id:id,perm_read,perm_write,perm_create,perm_unlink
+odhr_access_compliance_document_user,odhr.compliance.document user,model_odhr_compliance_document,hr.group_hr_user,1,1,1,0
+odhr_access_compliance_document_manager,odhr.compliance.document manager,model_odhr_compliance_document,hr.group_hr_manager,1,1,1,1
+odhr_access_onboarding_checklist_user,odhr.onboarding.checklist user,model_odhr_onboarding_checklist,hr.group_hr_user,1,1,1,0
+odhr_access_onboarding_checklist_manager,odhr.onboarding.checklist manager,model_odhr_onboarding_checklist,hr.group_hr_manager,1,1,1,1
+odhr_access_onboarding_task_user,odhr.onboarding.task user,model_odhr_onboarding_task,hr.group_hr_user,1,1,1,0
+odhr_access_onboarding_task_manager,odhr.onboarding.task manager,model_odhr_onboarding_task,hr.group_hr_manager,1,1,1,1

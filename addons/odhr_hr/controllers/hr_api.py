@@ -1,8 +1,9 @@
 # -*- coding: utf-8 -*-
 import json
-from base64 import b64decode
+from base64 import b64decode, b64encode
 from odoo import http
 from odoo.http import request, Response
+import time
 
 
 class OdhrHrApiController(http.Controller):
@@ -12,6 +13,27 @@ class OdhrHrApiController(http.Controller):
     - Uses auth='user'. Mobile apps can authenticate via session (login) or HTTP Basic.
     - For Basic, use an Odoo user's login as username and an API key as password.
     """
+
+    # naive in-process per-IP rate limiting (best-effort; not shared across workers)
+    _RATE_WINDOW_SECONDS = 60
+    _RATE_MAX_REQUESTS = 120
+    _rate_store = {}
+
+    def _rate_limited(self, key: str):
+        now = int(time.time())
+        window = self._RATE_WINDOW_SECONDS
+        max_req = self._RATE_MAX_REQUESTS
+        entry = self._rate_store.get(key)
+        if not entry:
+            self._rate_store[key] = [1, now]
+            return False
+        count, start = entry
+        if now - start >= window:
+            self._rate_store[key] = [1, now]
+            return False
+        count += 1
+        self._rate_store[key] = [count, start]
+        return count > max_req
 
     def _authenticate_basic(self):
         """Authenticate using Basic Auth header and db query param.
@@ -62,6 +84,10 @@ class OdhrHrApiController(http.Controller):
         csrf=False,
     )
     def list_employees(self, **kwargs):
+        # rate limit per IP per route
+        ip = request.httprequest.remote_addr or 'unknown'
+        if self._rate_limited(f"{ip}:/odhr/api/employees"):
+            return Response(json.dumps({"error": "rate_limited", "message": "Too many requests"}), status=429, mimetype="application/json")
         ok, reason, info = self._authenticate_basic()
         if not ok:
             return Response(json.dumps({"error": "unauthorized", "reason": reason, "info": info}), status=401, mimetype="application/json")
@@ -466,3 +492,123 @@ class OdhrHrApiController(http.Controller):
         if data.get("holiday_status_id"):
             data["holiday_status_id"] = m2o(data["holiday_status_id"])  # type: ignore
         return Response(json.dumps(data), status=201, mimetype="application/json")
+
+    # ----------------------
+    # Attachments & Images
+    # ----------------------
+
+    @http.route(
+        "/odhr/api/employees/<int:employee_id>/image",
+        type="http",
+        auth="public",
+        methods=["POST"],
+        csrf=False,
+    )
+    def employee_image(self, employee_id, **kwargs):
+        ok, reason, info = self._authenticate_basic()
+        if not ok:
+            return Response(json.dumps({"error": "unauthorized", "reason": reason, "info": info}), status=401, mimetype="application/json")
+        emp = request.env["hr.employee"].sudo().browse(employee_id)
+        if not emp.exists():
+            return Response(json.dumps({"error": "not_found", "message": "Employee not found"}), status=404, mimetype="application/json")
+        img = emp.image_1920 or False
+        b64 = img.decode() if isinstance(img, (bytes, bytearray)) else img
+        return Response(json.dumps({"employee_id": employee_id, "image_1920": b64}), status=200, mimetype="application/json")
+
+    @http.route(
+        "/odhr/api/employees/<int:employee_id>/attachments",
+        type="http",
+        auth="public",
+        methods=["POST"],
+        csrf=False,
+    )
+    def employee_attachments(self, employee_id, **kwargs):
+        ok, reason, info = self._authenticate_basic()
+        if not ok:
+            return Response(json.dumps({"error": "unauthorized", "reason": reason, "info": info}), status=401, mimetype="application/json")
+        try:
+            raw = request.httprequest.get_data(cache=False, as_text=True) or "{}"
+            params = json.loads(raw)
+        except Exception:
+            return Response(json.dumps({"error": "invalid_request", "message": "Invalid JSON body"}), status=400, mimetype="application/json")
+        limit = int(params.get("limit", 50))
+        offset = int(params.get("offset", 0))
+        domain = [("res_model", "=", "hr.employee"), ("res_id", "=", employee_id)]
+        fields = ["name", "mimetype", "create_date", "file_size"]
+        atts = request.env["ir.attachment"].sudo().search(domain, limit=limit, offset=offset)
+        data = atts.read(fields)
+        payload = {"count": len(data), "limit": limit, "offset": offset, "items": data}
+        return Response(json.dumps(payload), status=200, mimetype="application/json")
+
+    @http.route(
+        "/odhr/api/attachments/download",
+        type="http",
+        auth="public",
+        methods=["POST"],
+        csrf=False,
+    )
+    def attachment_download(self, **kwargs):
+        ok, reason, info = self._authenticate_basic()
+        if not ok:
+            return Response(json.dumps({"error": "unauthorized", "reason": reason, "info": info}), status=401, mimetype="application/json")
+        try:
+            raw = request.httprequest.get_data(cache=False, as_text=True) or "{}"
+            params = json.loads(raw)
+        except Exception:
+            return Response(json.dumps({"error": "invalid_request", "message": "Invalid JSON body"}), status=400, mimetype="application/json")
+        att_id = params.get("attachment_id")
+        if not att_id:
+            return Response(json.dumps({"error": "missing_params", "message": "attachment_id required"}), status=400, mimetype="application/json")
+        att = request.env["ir.attachment"].sudo().browse(int(att_id))
+        if not att.exists():
+            return Response(json.dumps({"error": "not_found", "message": "Attachment not found"}), status=404, mimetype="application/json")
+        # Security consideration: ensure it's linked to an employee the user can access (here we rely on groups/rules)
+        content = att.datas or False
+        b64 = content.decode() if isinstance(content, (bytes, bytearray)) else content
+        return Response(json.dumps({
+            "id": att.id,
+            "name": att.name,
+            "mimetype": att.mimetype,
+            "datas": b64,
+        }), status=200, mimetype="application/json")
+
+    @http.route(
+        "/odhr/api/attachments/upload",
+        type="http",
+        auth="public",
+        methods=["POST"],
+        csrf=False,
+    )
+    def attachment_upload(self, **kwargs):
+        ok, reason, info = self._authenticate_basic()
+        if not ok:
+            return Response(json.dumps({"error": "unauthorized", "reason": reason, "info": info}), status=401, mimetype="application/json")
+        try:
+            raw = request.httprequest.get_data(cache=False, as_text=True) or "{}"
+            params = json.loads(raw)
+        except Exception:
+            return Response(json.dumps({"error": "invalid_request", "message": "Invalid JSON body"}), status=400, mimetype="application/json")
+
+        required = ["res_model", "res_id", "name", "mimetype", "datas"]
+        missing = [k for k in required if not params.get(k)]
+        if missing:
+            return Response(json.dumps({"error": "missing_params", "message": f"Missing: {', '.join(missing)}"}), status=400, mimetype="application/json")
+
+        # Basic input hardening
+        allowed_models = {"hr.employee", "odhr.compliance.document"}
+        if params["res_model"] not in allowed_models:
+            return Response(json.dumps({"error": "invalid_model", "message": "Unsupported model"}), status=400, mimetype="application/json")
+        datas_b64 = params["datas"]
+        # Prevent overly large uploads (>5MB approx)
+        if len(datas_b64) > 7_000_000:
+            return Response(json.dumps({"error": "file_too_large", "message": "Max 5MB"}), status=413, mimetype="application/json")
+
+        vals = {
+            "res_model": params["res_model"],
+            "res_id": int(params["res_id"]),
+            "name": params["name"],
+            "mimetype": params["mimetype"],
+            "datas": datas_b64,
+        }
+        att = request.env["ir.attachment"].sudo().create(vals)
+        return Response(json.dumps({"id": att.id, "name": att.name, "mimetype": att.mimetype}), status=201, mimetype="application/json")

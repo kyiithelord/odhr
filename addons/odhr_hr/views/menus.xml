@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<odoo>
+  <data>
+    <menuitem id="menu_odhr_root" name="ODHR" parent="hr.menu_hr_root" sequence="90"/>
+
+    <menuitem id="menu_odhr_compliance_root" name="Compliance" parent="menu_odhr_root" sequence="10"/>
+    <menuitem id="menu_odhr_compliance_documents" name="Documents" parent="menu_odhr_compliance_root" action="action_odhr_compliance_document"/>
+
+    <menuitem id="menu_odhr_onboarding_root" name="Onboarding" parent="menu_odhr_root" sequence="20"/>
+    <menuitem id="menu_odhr_onboarding_checklists" name="Checklists" parent="menu_odhr_onboarding_root" action="action_odhr_onboarding_checklist"/>
+  </data>
+</odoo>
