@@ -206,6 +206,87 @@ class OdhrHrApiController(http.Controller):
         return Response(json.dumps(rec), status=200, mimetype="application/json")
 
     @http.route(
+        "/odhr/api/employees/create",
+        type="http",
+        auth="public",
+        methods=["POST", "OPTIONS"],
+        csrf=False,
+    )
+    def create_employee(self, **kwargs):
+        """Create a new employee (HTTP JSON).
+
+        Body JSON fields (all optional unless marked):
+        - name (required)
+        - work_email, work_phone, mobile_phone
+        - job_title
+        - department_id (int)
+        - work_location_id (int)
+        - image_1920 (base64 string)
+        Returns 201 with created record payload.
+        """
+        # Handle CORS preflight
+        if request.httprequest.method == 'OPTIONS':
+            return self._corsify(Response(status=204))
+        ip = request.httprequest.remote_addr or 'unknown'
+        if self._rate_limited(f"{ip}:/odhr/api/employees/create"):
+            return self._corsify(Response(json.dumps({"error": "rate_limited", "message": "Too many requests"}), status=429, mimetype="application/json"))
+        ok, reason, info = self._authenticate_basic()
+        if not ok:
+            return self._corsify(Response(json.dumps({"error": "unauthorized", "reason": reason, "info": info}), status=401, mimetype="application/json"))
+        try:
+            raw = request.httprequest.get_data(cache=False, as_text=True) or "{}"
+            params = json.loads(raw)
+        except Exception:
+            return self._corsify(Response(json.dumps({"error": "invalid_request", "message": "Invalid JSON body"}), status=400, mimetype="application/json"))
+
+        # Validate required fields
+        if not (params.get("name") and str(params.get("name")).strip()):
+            return self._corsify(Response(json.dumps({"error": "missing_params", "message": "name is required"}), status=400, mimetype="application/json"))
+
+        # Build values, harden types
+        vals = {
+            "name": str(params.get("name")).strip(),
+        }
+        for key in ("work_email", "work_phone", "mobile_phone", "job_title"):
+            if params.get(key):
+                vals[key] = str(params.get(key))
+        for key in ("department_id", "work_location_id"):
+            if params.get(key) is not None:
+                try:
+                    vals[key] = int(params.get(key))
+                except Exception:
+                    return self._corsify(Response(json.dumps({"error": "invalid_param", "message": f"{key} must be an integer"}), status=400, mimetype="application/json"))
+        # Optional image: store base64 string as image_1920
+        if params.get("image_1920"):
+            img = params.get("image_1920")
+            if isinstance(img, str):
+                vals["image_1920"] = img
+
+        emp = request.env["hr.employee"].sudo().create(vals)
+        fields = [
+            "name",
+            "work_email",
+            "work_phone",
+            "mobile_phone",
+            "job_title",
+            "department_id",
+            "work_location_id",
+            "image_1920",
+        ]
+        rec = emp.read(fields)[0]
+
+        def m2o(val):
+            if isinstance(val, (list, tuple)) and len(val) == 2:
+                return {"id": val[0], "name": val[1]}
+            return None
+
+        if rec.get("department_id"):
+            rec["department_id"] = m2o(rec["department_id"])  # type: ignore
+        if rec.get("work_location_id"):
+            rec["work_location_id"] = m2o(rec["work_location_id"])  # type: ignore
+        return self._corsify(Response(json.dumps(rec), status=201, mimetype="application/json"))
+
+    @http.route(
         "/odhr/api/ping",
         type="http",
         auth="public",
