@@ -5,3 +5,7 @@ odhr_access_onboarding_checklist_user,odhr.onboarding.checklist user,model_odhr_
 odhr_access_onboarding_checklist_manager,odhr.onboarding.checklist manager,model_odhr_onboarding_checklist,hr.group_hr_manager,1,1,1,1
 odhr_access_onboarding_task_user,odhr.onboarding.task user,model_odhr_onboarding_task,hr.group_hr_user,1,1,1,0
 odhr_access_onboarding_task_manager,odhr.onboarding.task manager,model_odhr_onboarding_task,hr.group_hr_manager,1,1,1,1
+odhr_access_offboarding_checklist_user,odhr.offboarding.checklist user,model_odhr_offboarding_checklist,hr.group_hr_user,1,1,1,0
+odhr_access_offboarding_checklist_manager,odhr.offboarding.checklist manager,model_odhr_offboarding_checklist,hr.group_hr_manager,1,1,1,1
+odhr_access_offboarding_task_user,odhr.offboarding.task user,model_odhr_offboarding_task,hr.group_hr_user,1,1,1,0
+odhr_access_offboarding_task_manager,odhr.offboarding.task manager,model_odhr_offboarding_task,hr.group_hr_manager,1,1,1,1

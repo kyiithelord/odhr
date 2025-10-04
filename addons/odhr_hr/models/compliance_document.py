@@ -33,9 +33,31 @@ class ComplianceDocument(models.Model):
 
     @api.model
     def cron_notify_expiring_documents(self):
-        # Simple log-based notifier; integrate with mail if needed
-        soon = fields.Date.to_string(date.today())
-        docs = self.search([('expiry_date', '!=', False), ('expiry_date', '<=', soon)])
+        # Create a TODO activity on the document for the document owner or HR
+        today_str = fields.Date.to_string(date.today())
+        docs = self.search([('expiry_date', '!=', False), ('expiry_date', '<=', today_str)])
+        activity_type = self.env.ref('mail.mail_activity_data_todo')
+        hr_group = self.env.ref('hr.group_hr_user')
         for d in docs:
             _logger.info('Compliance doc expiring/expired: %s (Emp %s)', d.name, d.employee_id.display_name)
+            # assign to employee's user if available; else any HR user
+            user = d.employee_id.user_id or (hr_group.users[:1] if hr_group and hr_group.users else False)
+            if not user:
+                continue
+            existing = self.env['mail.activity'].search([
+                ('res_model', '=', d._name),
+                ('res_id', '=', d.id),
+                ('activity_type_id', '=', activity_type.id),
+                ('user_id', '=', user.id),
+            ], limit=1)
+            if existing:
+                continue
+            self.env['mail.activity'].create({
+                'activity_type_id': activity_type.id,
+                'res_model': d._name,
+                'res_id': d.id,
+                'user_id': user.id,
+                'summary': _('Compliance document expiring/expired'),
+                'note': _('Document %s for %s is expiring or has expired (expiry: %s).') % (d.name, d.employee_id.display_name, d.expiry_date or ''),
+            })
         return True

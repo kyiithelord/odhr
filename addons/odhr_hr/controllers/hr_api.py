@@ -146,6 +146,9 @@ class OdhrHrApiController(http.Controller):
         csrf=False,
     )
     def employee_detail(self, employee_id, **kwargs):
+        ip = request.httprequest.remote_addr or 'unknown'
+        if self._rate_limited(f"{ip}:/odhr/api/employees/{employee_id}"):
+            return Response(json.dumps({"error": "rate_limited", "message": "Too many requests"}), status=429, mimetype="application/json")
         ok, reason, info = self._authenticate_basic()
         if not ok:
             return Response(json.dumps({"error": "unauthorized", "reason": reason, "info": info}), status=401, mimetype="application/json")
@@ -187,6 +190,9 @@ class OdhrHrApiController(http.Controller):
         csrf=False,
     )
     def ping(self, **kwargs):
+        ip = request.httprequest.remote_addr or 'unknown'
+        if self._rate_limited(f"{ip}:/odhr/api/ping"):
+            return Response(json.dumps({"error": "rate_limited", "message": "Too many requests"}), status=429, mimetype="application/json")
         ok, reason, info = self._authenticate_basic()
         status = 200 if ok else 401
         payload = {"ok": ok, "reason": reason, "info": info}
@@ -204,6 +210,9 @@ class OdhrHrApiController(http.Controller):
         csrf=False,
     )
     def list_departments(self, **kwargs):
+        ip = request.httprequest.remote_addr or 'unknown'
+        if self._rate_limited(f"{ip}:/odhr/api/departments"):
+            return Response(json.dumps({"error": "rate_limited", "message": "Too many requests"}), status=429, mimetype="application/json")
         ok, reason, info = self._authenticate_basic()
         if not ok:
             return Response(json.dumps({"error": "unauthorized", "reason": reason, "info": info}), status=401, mimetype="application/json")
@@ -250,6 +259,9 @@ class OdhrHrApiController(http.Controller):
         csrf=False,
     )
     def list_contracts(self, **kwargs):
+        ip = request.httprequest.remote_addr or 'unknown'
+        if self._rate_limited(f"{ip}:/odhr/api/contracts"):
+            return Response(json.dumps({"error": "rate_limited", "message": "Too many requests"}), status=429, mimetype="application/json")
         ok, reason, info = self._authenticate_basic()
         if not ok:
             return Response(json.dumps({"error": "unauthorized", "reason": reason, "info": info}), status=401, mimetype="application/json")
@@ -302,6 +314,9 @@ class OdhrHrApiController(http.Controller):
         csrf=False,
     )
     def list_attendances(self, **kwargs):
+        ip = request.httprequest.remote_addr or 'unknown'
+        if self._rate_limited(f"{ip}:/odhr/api/attendances"):
+            return Response(json.dumps({"error": "rate_limited", "message": "Too many requests"}), status=429, mimetype="application/json")
         ok, reason, info = self._authenticate_basic()
         if not ok:
             return Response(json.dumps({"error": "unauthorized", "reason": reason, "info": info}), status=401, mimetype="application/json")
@@ -352,6 +367,9 @@ class OdhrHrApiController(http.Controller):
         csrf=False,
     )
     def create_attendance(self, **kwargs):
+        ip = request.httprequest.remote_addr or 'unknown'
+        if self._rate_limited(f"{ip}:/odhr/api/attendances/create"):
+            return Response(json.dumps({"error": "rate_limited", "message": "Too many requests"}), status=429, mimetype="application/json")
         ok, reason, info = self._authenticate_basic()
         if not ok:
             return Response(json.dumps({"error": "unauthorized", "reason": reason, "info": info}), status=401, mimetype="application/json")
@@ -392,6 +410,9 @@ class OdhrHrApiController(http.Controller):
         csrf=False,
     )
     def list_leaves(self, **kwargs):
+        ip = request.httprequest.remote_addr or 'unknown'
+        if self._rate_limited(f"{ip}:/odhr/api/leaves"):
+            return Response(json.dumps({"error": "rate_limited", "message": "Too many requests"}), status=429, mimetype="application/json")
         ok, reason, info = self._authenticate_basic()
         if not ok:
             return Response(json.dumps({"error": "unauthorized", "reason": reason, "info": info}), status=401, mimetype="application/json")
@@ -450,6 +471,9 @@ class OdhrHrApiController(http.Controller):
         csrf=False,
     )
     def create_leave(self, **kwargs):
+        ip = request.httprequest.remote_addr or 'unknown'
+        if self._rate_limited(f"{ip}:/odhr/api/leaves/create"):
+            return Response(json.dumps({"error": "rate_limited", "message": "Too many requests"}), status=429, mimetype="application/json")
         ok, reason, info = self._authenticate_basic()
         if not ok:
             return Response(json.dumps({"error": "unauthorized", "reason": reason, "info": info}), status=401, mimetype="application/json")
@@ -505,6 +529,9 @@ class OdhrHrApiController(http.Controller):
         csrf=False,
     )
     def employee_image(self, employee_id, **kwargs):
+        ip = request.httprequest.remote_addr or 'unknown'
+        if self._rate_limited(f"{ip}:/odhr/api/employees/{employee_id}/image"):
+            return Response(json.dumps({"error": "rate_limited", "message": "Too many requests"}), status=429, mimetype="application/json")
         ok, reason, info = self._authenticate_basic()
         if not ok:
             return Response(json.dumps({"error": "unauthorized", "reason": reason, "info": info}), status=401, mimetype="application/json")
@@ -523,6 +550,9 @@ class OdhrHrApiController(http.Controller):
         csrf=False,
     )
     def employee_attachments(self, employee_id, **kwargs):
+        ip = request.httprequest.remote_addr or 'unknown'
+        if self._rate_limited(f"{ip}:/odhr/api/employees/{employee_id}/attachments"):
+            return Response(json.dumps({"error": "rate_limited", "message": "Too many requests"}), status=429, mimetype="application/json")
         ok, reason, info = self._authenticate_basic()
         if not ok:
             return Response(json.dumps({"error": "unauthorized", "reason": reason, "info": info}), status=401, mimetype="application/json")
@@ -548,6 +578,9 @@ class OdhrHrApiController(http.Controller):
         csrf=False,
     )
     def attachment_download(self, **kwargs):
+        ip = request.httprequest.remote_addr or 'unknown'
+        if self._rate_limited(f"{ip}:/odhr/api/attachments/download"):
+            return Response(json.dumps({"error": "rate_limited", "message": "Too many requests"}), status=429, mimetype="application/json")
         ok, reason, info = self._authenticate_basic()
         if not ok:
             return Response(json.dumps({"error": "unauthorized", "reason": reason, "info": info}), status=401, mimetype="application/json")
@@ -580,6 +613,9 @@ class OdhrHrApiController(http.Controller):
         csrf=False,
     )
     def attachment_upload(self, **kwargs):
+        ip = request.httprequest.remote_addr or 'unknown'
+        if self._rate_limited(f"{ip}:/odhr/api/attachments/upload"):
+            return Response(json.dumps({"error": "rate_limited", "message": "Too many requests"}), status=429, mimetype="application/json")
         ok, reason, info = self._authenticate_basic()
         if not ok:
             return Response(json.dumps({"error": "unauthorized", "reason": reason, "info": info}), status=401, mimetype="application/json")

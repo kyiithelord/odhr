@@ -24,5 +24,20 @@
     <field name="groups" eval="[(4, ref('base.group_user'))]"/>
   </record>
 
+  <!-- Self-service: employees can see their own offboarding checklist and tasks -->
+  <record id="odhr_rule_offboarding_checklist_self" model="ir.rule">
+    <field name="name">Offboarding Checklist: Self</field>
+    <field name="model_id" ref="model_odhr_offboarding_checklist"/>
+    <field name="domain_force">[("employee_id.user_id", "=", user.id)]</field>
+    <field name="groups" eval="[(4, ref('base.group_user'))]"/>
+  </record>
+
+  <record id="odhr_rule_offboarding_task_self" model="ir.rule">
+    <field name="name">Offboarding Task: Self</field>
+    <field name="model_id" ref="model_odhr_offboarding_task"/>
+    <field name="domain_force">[("checklist_id.employee_id.user_id", "=", user.id)]</field>
+    <field name="groups" eval="[(4, ref('base.group_user'))]"/>
+  </record>
+
   <!-- HR Users/Managers inherit broader access via groups and ACLs; no extra rule needed here -->
 </odoo>

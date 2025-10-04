@@ -8,5 +8,8 @@
 
     <menuitem id="menu_odhr_onboarding_root" name="Onboarding" parent="menu_odhr_root" sequence="20"/>
     <menuitem id="menu_odhr_onboarding_checklists" name="Checklists" parent="menu_odhr_onboarding_root" action="action_odhr_onboarding_checklist"/>
+
+    <menuitem id="menu_odhr_offboarding_root" name="Offboarding" parent="menu_odhr_root" sequence="30"/>
+    <menuitem id="menu_odhr_offboarding_checklists" name="Checklists" parent="menu_odhr_offboarding_root" action="action_odhr_offboarding_checklist"/>
   </data>
 </odoo>

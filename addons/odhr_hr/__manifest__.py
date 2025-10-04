@@ -20,6 +20,7 @@
         'views/menus.xml',
         'views/compliance_document_views.xml',
         'views/onboarding_views.xml',
+        'views/offboarding_views.xml',
         'views/hr_employee_views.xml',
         'data/ir_cron.xml',
     ],

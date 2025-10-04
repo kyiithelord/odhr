@@ -1,0 +1,81 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<odoo>
+  <data>
+    <record id="view_odhr_offboarding_checklist_tree" model="ir.ui.view">
+      <field name="name">odhr.offboarding.checklist.tree</field>
+      <field name="model">odhr.offboarding.checklist</field>
+      <field name="arch" type="xml">
+        <tree>
+          <field name="name"/>
+          <field name="employee_id"/>
+          <field name="state"/>
+          <field name="progress" widget="progressbar"/>
+        </tree>
+      </field>
+    </record>
+
+    <record id="view_odhr_offboarding_checklist_form" model="ir.ui.view">
+      <field name="name">odhr.offboarding.checklist.form</field>
+      <field name="model">odhr.offboarding.checklist</field>
+      <field name="arch" type="xml">
+        <form string="Offboarding Checklist">
+          <sheet>
+            <group>
+              <group>
+                <field name="name"/>
+                <field name="employee_id"/>
+              </group>
+              <group>
+                <field name="state"/>
+                <field name="progress" readonly="1" widget="progressbar"/>
+              </group>
+            </group>
+            <notebook>
+              <page string="Tasks">
+                <field name="task_ids">
+                  <tree editable="bottom">
+                    <field name="sequence" widget="handle"/>
+                    <field name="name"/>
+                    <field name="owner_id"/>
+                    <field name="due_date"/>
+                    <field name="state"/>
+                    <field name="notes"/>
+                  </tree>
+                </field>
+              </page>
+            </notebook>
+          </sheet>
+          <footer>
+            <button name="action_start" string="Start" type="object" class="btn-primary" attrs="{'invisible': [('state','!=','draft')]}"/>
+            <button name="action_done" string="Mark Done" type="object" class="btn-secondary" attrs="{'invisible': [('state','!=','in_progress')]}"/>
+            <button name="action_cancel" string="Cancel" type="object" class="btn-secondary" attrs="{'invisible': [('state','=','done')]}"/>
+          </footer>
+        </form>
+      </field>
+    </record>
+
+    <record id="view_odhr_offboarding_task_tree" model="ir.ui.view">
+      <field name="name">odhr.offboarding.task.tree</field>
+      <field name="model">odhr.offboarding.task</field>
+      <field name="arch" type="xml">
+        <tree>
+          <field name="sequence"/>
+          <field name="name"/>
+          <field name="checklist_id"/>
+          <field name="owner_id"/>
+          <field name="due_date"/>
+          <field name="state"/>
+        </tree>
+      </field>
+    </record>
+
+    <record id="action_odhr_offboarding_checklist" model="ir.actions.act_window">
+      <field name="name">Offboarding Checklists</field>
+      <field name="res_model">odhr.offboarding.checklist</field>
+      <field name="view_mode">tree,form</field>
+      <field name="help" type="html">
+        <p>Create and track offboarding checklists and tasks.</p>
+      </field>
+    </record>
+  </data>
+</odoo>
