@@ -1,0 +1,22 @@
+{
+  "expo": {
+    "name": "ODHR Mobile",
+    "slug": "odhr-mobile",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "assetBundlePatterns": ["**/*"],
+    "ios": {
+      "supportsTablet": true
+    },
+    "android": {
+      "adaptiveIcon": {}
+    },
+    "web": {
+      "bundler": "metro",
+      "output": "static"
+    },
+    "plugins": [
+      ["expo-secure-store"]
+    ]
+  }
+}
