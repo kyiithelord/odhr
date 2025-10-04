@@ -11,10 +11,6 @@
     "android": {
       "adaptiveIcon": {}
     },
-    "web": {
-      "bundler": "metro",
-      "output": "static"
-    },
     "plugins": [
       ["expo-secure-store"]
     ]
