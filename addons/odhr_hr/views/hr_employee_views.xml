@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<odoo>
+  <data>
+    <record id="view_employee_form_odhr" model="ir.ui.view">
+      <field name="name">hr.employee.form.odhr</field>
+      <field name="model">hr.employee</field>
+      <field name="inherit_id" ref="hr.hr_employee_view_form"/>
+      <field name="arch" type="xml">
+        <xpath expr="//sheet/notebook" position="inside">
+          <page string="ODHR">
+            <group>
+              <group>
+                <field name="emergency_contact_name"/>
+                <field name="emergency_contact_phone"/>
+              </group>
+              <group>
+                <field name="probation_end_date"/>
+              </group>
+            </group>
+          </page>
+        </xpath>
+      </field>
+    </record>
+  </data>
+</odoo>
