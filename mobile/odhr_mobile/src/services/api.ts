@@ -14,23 +14,41 @@ async function buildHeaders() {
   return headers;
 }
 
-function normalizeBaseUrl(url: string) {
-  return url.replace(/\/$/, '');
+function buildRequestUrl(base: string, path: string) {
+  // base may include a query like ?db=xyz. We must preserve it.
+  // Ensure path starts with '/'
+  const p = path.startsWith('/') ? path : `/${path}`;
+  try {
+    const b = new URL(base);
+    const u = new URL(b.origin);
+    u.pathname = p;
+    u.search = b.search; // preserve ?db=...
+    return u.toString();
+  } catch {
+    // Fallback: naive concat
+    const cleanedBase = base.replace(/\/$/, '');
+    return `${cleanedBase}${p}`;
+  }
 }
 
 export async function apiPost<T>(path: string, body?: any): Promise<T> {
   const { baseUrl } = await getCredentials();
-  const base = normalizeBaseUrl(baseUrl || CONFIG.API_BASE_URL);
-  const res = await fetch(`${base}${path}`, {
+  const base = baseUrl || CONFIG.API_BASE_URL;
+  const url = buildRequestUrl(base, path);
+  const res = await fetch(url, {
     method: 'POST',
     headers: await buildHeaders(),
     body: body ? JSON.stringify(body) : '{}',
   });
+  const text = await res.text();
   if (!res.ok) {
-    const text = await res.text();
-    throw new Error(`HTTP ${res.status}: ${text}`);
+    throw new Error(`HTTP ${res.status} ${res.statusText}: ${text.slice(0, 300)}`);
   }
-  return res.json();
+  try {
+    return JSON.parse(text) as T;
+  } catch (e) {
+    throw new Error(`Invalid JSON from ${url}. First 200 chars: ${text.slice(0, 200)}`);
+  }
 }
 
 export type EmployeeSummary = {

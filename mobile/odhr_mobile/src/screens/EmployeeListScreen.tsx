@@ -13,12 +13,14 @@ export default function EmployeeListScreen({ navigation }: Props) {
   const [refreshing, setRefreshing] = useState(false);
   const [offset, setOffset] = useState(0);
   const [hasMore, setHasMore] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
   const PAGE_SIZE = 20;
 
   const load = useCallback(async (reset = false) => {
     if (loading) return;
     setLoading(true);
+    setError(null);
     try {
       const resp = await listEmployees({ limit: PAGE_SIZE, offset: reset ? 0 : offset, search });
       if (reset) {
@@ -28,6 +30,12 @@ export default function EmployeeListScreen({ navigation }: Props) {
       }
       setHasMore(resp.items.length === PAGE_SIZE);
       setOffset((prev: number) => (reset ? PAGE_SIZE : prev + PAGE_SIZE));
+    } catch (e: any) {
+      setError(e?.message || 'Failed to load employees');
+      if (reset) {
+        setItems([]);
+        setHasMore(false);
+      }
     } finally {
       setLoading(false);
     }
@@ -76,6 +84,12 @@ export default function EmployeeListScreen({ navigation }: Props) {
           returnKeyType="search"
         />
       </View>
+      {error ? (
+        <Text style={styles.error}>Error: {error}</Text>
+      ) : null}
+      {!loading && !error && items.length === 0 ? (
+        <Text style={styles.empty}>No employees found. Check Base URL, login, and API key in the Login screen, and ensure HR app is installed with employee data.</Text>
+      ) : null}
       <FlatList
         data={items}
         keyExtractor={(it: EmployeeSummary) => String(it.id)}
@@ -96,4 +110,6 @@ const styles = StyleSheet.create({
   row: { padding: 12, borderBottomWidth: 1, borderColor: '#eee' },
   name: { fontSize: 16, fontWeight: '600' },
   secondary: { color: '#666', marginTop: 2 },
+  error: { color: '#b00020', padding: 12 },
+  empty: { color: '#666', padding: 12 },
 });
