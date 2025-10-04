@@ -1,6 +1,6 @@
 import React from 'react';
 import { TouchableOpacity, Text, StyleSheet, GestureResponderEvent, ViewStyle, TextStyle, View, ActivityIndicator } from 'react-native';
-import { theme } from '../theme';
+import { useTheme } from '../themeProvider';
 
 type ButtonVariant = 'primary' | 'secondary' | 'ghost' | 'danger';
 type ButtonSize = 'sm' | 'md' | 'lg';
@@ -32,7 +32,8 @@ export function PrimaryButton({
   leftIcon,
   rightIcon,
 }: Props) {
-  const { containerStyle, labelStyle } = getStylesFor(variant, size, disabled);
+  const theme = useTheme();
+  const { containerStyle, labelStyle } = getStylesFor(theme, variant, size, disabled);
 
   return (
     <TouchableOpacity
@@ -56,7 +57,7 @@ export function PrimaryButton({
   );
 }
 
-function getStylesFor(variant: ButtonVariant, size: ButtonSize, disabled: boolean) {
+function getStylesFor(theme: ReturnType<typeof useTheme>, variant: ButtonVariant, size: ButtonSize, disabled: boolean) {
   const paddingY = size === 'sm' ? theme.spacing(2.5) : size === 'lg' ? theme.spacing(4) : theme.spacing(3);
   const paddingX = size === 'sm' ? theme.spacing(3) : size === 'lg' ? theme.spacing(5) : theme.spacing(4);
   const fontSize = size === 'sm' ? theme.typography.fontSizes.sm : size === 'lg' ? theme.typography.fontSizes.lg : theme.typography.fontSizes.md;
@@ -114,6 +115,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   icon: {
-    marginHorizontal: theme.spacing(1),
+    marginHorizontal: 4,
   },
 });
