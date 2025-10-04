@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { View, Text, TextInput, Button, StyleSheet, Alert } from 'react-native';
+import { View, Text, TextInput, Button, StyleSheet, Alert, Platform } from 'react-native';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { RootStackParamList } from '../../App';
 import { CONFIG } from '../config';
@@ -30,7 +30,7 @@ export default function LoginScreen({ navigation }: Props) {
     navigation.replace('Employees');
   }
 
-  return (
+  const content = (
     <View style={styles.container}>
       <Text style={styles.title}>Connect to Odoo</Text>
 
@@ -39,6 +39,7 @@ export default function LoginScreen({ navigation }: Props) {
         style={styles.input}
         placeholder="http://<host>:8069"
         autoCapitalize="none"
+        autoCorrect={false}
         value={baseUrl}
         onChangeText={setBaseUrl}
       />
@@ -48,6 +49,7 @@ export default function LoginScreen({ navigation }: Props) {
         style={styles.input}
         placeholder="user@example.com"
         autoCapitalize="none"
+        autoCorrect={false}
         keyboardType="email-address"
         value={login}
         onChangeText={setLogin}
@@ -58,7 +60,11 @@ export default function LoginScreen({ navigation }: Props) {
         style={styles.input}
         placeholder="Your Odoo API Key"
         autoCapitalize="none"
+        autoCorrect={false}
         secureTextEntry
+        // Web hints to reduce warnings (no-ops on native)
+        autoComplete="off"
+        textContentType="password"
         value={apiKey}
         onChangeText={setApiKey}
       />
@@ -66,6 +72,18 @@ export default function LoginScreen({ navigation }: Props) {
       <Button title="Continue" onPress={onContinue} />
     </View>
   );
+
+  if (Platform.OS === 'web') {
+    return (
+      // Wrap in a form so browsers treat password inputs within a form context
+      // Prevent default to avoid full page reload on Enter
+      <form onSubmit={(e) => { e.preventDefault(); onContinue(); }} style={{ height: '100%' }}>
+        {content}
+      </form>
+    );
+  }
+
+  return content;
 }
 
 const styles = StyleSheet.create({

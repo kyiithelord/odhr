@@ -5,12 +5,12 @@
       <field name="name">odhr.offboarding.checklist.tree</field>
       <field name="model">odhr.offboarding.checklist</field>
       <field name="arch" type="xml">
-        <tree>
+        <list>
           <field name="name"/>
           <field name="employee_id"/>
           <field name="state"/>
           <field name="progress" widget="progressbar"/>
-        </tree>
+        </list>
       </field>
     </record>
 
@@ -33,22 +33,22 @@
             <notebook>
               <page string="Tasks">
                 <field name="task_ids">
-                  <tree editable="bottom">
+                  <list editable="bottom">
                     <field name="sequence" widget="handle"/>
                     <field name="name"/>
                     <field name="owner_id"/>
                     <field name="due_date"/>
                     <field name="state"/>
                     <field name="notes"/>
-                  </tree>
+                  </list>
                 </field>
               </page>
             </notebook>
           </sheet>
           <footer>
-            <button name="action_start" string="Start" type="object" class="btn-primary" attrs="{'invisible': [('state','!=','draft')]}"/>
-            <button name="action_done" string="Mark Done" type="object" class="btn-secondary" attrs="{'invisible': [('state','!=','in_progress')]}"/>
-            <button name="action_cancel" string="Cancel" type="object" class="btn-secondary" attrs="{'invisible': [('state','=','done')]}"/>
+            <button name="action_start" string="Start" type="object" class="btn-primary" modifiers="{'invisible': [['state','!=','draft']]}"/>
+            <button name="action_done" string="Mark Done" type="object" class="btn-secondary" modifiers="{'invisible': [['state','!=','in_progress']]}"/>
+            <button name="action_cancel" string="Cancel" type="object" class="btn-secondary" modifiers="{'invisible': [['state','=','done']]}"/>
           </footer>
         </form>
       </field>
@@ -58,21 +58,21 @@
       <field name="name">odhr.offboarding.task.tree</field>
       <field name="model">odhr.offboarding.task</field>
       <field name="arch" type="xml">
-        <tree>
+        <list>
           <field name="sequence"/>
           <field name="name"/>
           <field name="checklist_id"/>
           <field name="owner_id"/>
           <field name="due_date"/>
           <field name="state"/>
-        </tree>
+        </list>
       </field>
     </record>
 
     <record id="action_odhr_offboarding_checklist" model="ir.actions.act_window">
       <field name="name">Offboarding Checklists</field>
       <field name="res_model">odhr.offboarding.checklist</field>
-      <field name="view_mode">tree,form</field>
+      <field name="view_mode">list,form</field>
       <field name="help" type="html">
         <p>Create and track offboarding checklists and tasks.</p>
       </field>

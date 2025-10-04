@@ -54,20 +54,16 @@ class OdhrHrApiController(http.Controller):
                 return False, 'malformed_authorization', info
             login, password = raw.split(':', 1)
             info['login'] = login
-            # Try (db, login, password) first
+            # Odoo 18: set session.db then call authenticate(login, password)
             try:
-                uid = request.session.authenticate(db, login, password)
-            except TypeError as e:
-                # Fallback: set session db and try (login, password)
-                try:
-                    request.session.db = db
-                except Exception:
-                    pass
-                try:
-                    uid = request.session.authenticate(login, password)
-                except Exception as e2:
-                    info['exception'] = str(e2)
-                    return False, 'exception', info
+                request.session.db = db
+            except Exception:
+                pass
+            try:
+                uid = request.session.authenticate(login, password)
+            except Exception as e2:
+                info['exception'] = str(e2)
+                return False, 'bad_credentials', info
             if uid:
                 info['uid'] = uid
                 return True, 'ok', info
@@ -76,27 +72,43 @@ class OdhrHrApiController(http.Controller):
             info['exception'] = str(e)
             return False, 'exception', info
 
+    # ---- CORS helpers (for Expo Web) ----
+    def _corsify(self, resp: Response):
+        try:
+            # Allow all origins in dev; for prod restrict as needed
+            resp.headers['Access-Control-Allow-Origin'] = request.httprequest.headers.get('Origin', '*') or '*'
+            resp.headers['Vary'] = 'Origin'
+            resp.headers['Access-Control-Allow-Credentials'] = 'true'
+            resp.headers['Access-Control-Allow-Methods'] = 'GET,POST,OPTIONS'
+            resp.headers['Access-Control-Allow-Headers'] = 'Authorization, Content-Type'
+        except Exception:
+            pass
+        return resp
+
     @http.route(
         "/odhr/api/employees",
         type="http",
         auth="public",
-        methods=["POST"],
+        methods=["POST", "OPTIONS"],
         csrf=False,
     )
     def list_employees(self, **kwargs):
+        # Handle CORS preflight on web
+        if request.httprequest.method == 'OPTIONS':
+            return self._corsify(Response(status=204))
         # rate limit per IP per route
         ip = request.httprequest.remote_addr or 'unknown'
         if self._rate_limited(f"{ip}:/odhr/api/employees"):
-            return Response(json.dumps({"error": "rate_limited", "message": "Too many requests"}), status=429, mimetype="application/json")
+            return self._corsify(Response(json.dumps({"error": "rate_limited", "message": "Too many requests"}), status=429, mimetype="application/json"))
         ok, reason, info = self._authenticate_basic()
         if not ok:
-            return Response(json.dumps({"error": "unauthorized", "reason": reason, "info": info}), status=401, mimetype="application/json")
+            return self._corsify(Response(json.dumps({"error": "unauthorized", "reason": reason, "info": info}), status=401, mimetype="application/json"))
         """Return a paginated list of employees (HTTP JSON)."""
         try:
             raw = request.httprequest.get_data(cache=False, as_text=True) or "{}"
             params = json.loads(raw)
         except Exception:
-            return Response(json.dumps({"error": "invalid_request", "message": "Invalid JSON body"}), status=400, mimetype="application/json")
+            return self._corsify(Response(json.dumps({"error": "invalid_request", "message": "Invalid JSON body"}), status=400, mimetype="application/json"))
         limit = int(params.get("limit", 50))
         offset = int(params.get("offset", 0))
         search = (params.get("search") or "").strip()
@@ -136,7 +148,7 @@ class OdhrHrApiController(http.Controller):
             "offset": offset,
             "items": data,
         }
-        return Response(json.dumps(payload), status=200, mimetype="application/json")
+        return self._corsify(Response(json.dumps(payload), status=200, mimetype="application/json"))
 
     @http.route(
         "/odhr/api/employees/<int:employee_id>",

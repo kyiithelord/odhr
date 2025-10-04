@@ -1,8 +1,9 @@
 import React, { useEffect, useState, useCallback } from 'react';
-import { View, Text, TextInput, FlatList, TouchableOpacity, StyleSheet, ActivityIndicator, RefreshControl } from 'react-native';
+import { View, Text, TextInput, FlatList, TouchableOpacity, StyleSheet, ActivityIndicator, RefreshControl, Button } from 'react-native';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { RootStackParamList } from '../../App';
 import { listEmployees, EmployeeSummary } from '../services/api';
+import { clearCredentials } from '../services/storage';
 
  type Props = NativeStackScreenProps<RootStackParamList, 'Employees'>;
 
@@ -83,9 +84,18 @@ export default function EmployeeListScreen({ navigation }: Props) {
           onSubmitEditing={onSearchSubmit}
           returnKeyType="search"
         />
+        <View style={{ marginTop: 8 }}>
+          <Button title="Login/Settings" onPress={() => navigation.replace('Login')} />
+        </View>
       </View>
       {error ? (
-        <Text style={styles.error}>Error: {error}</Text>
+        <View>
+          <Text style={styles.error}>Error: {error}</Text>
+          <View style={{ flexDirection: 'row', gap: 12, paddingHorizontal: 12, paddingBottom: 8 }}>
+            <Button title="Open Login" onPress={() => navigation.replace('Login')} />
+            <Button title="Clear Saved URL" onPress={async () => { await clearCredentials(); setItems([]); setOffset(0); setHasMore(true); setError(null); }} />
+          </View>
+        </View>
       ) : null}
       {!loading && !error && items.length === 0 ? (
         <Text style={styles.empty}>No employees found. Check Base URL, login, and API key in the Login screen, and ensure HR app is installed with employee data.</Text>

@@ -35,11 +35,26 @@ export async function apiPost<T>(path: string, body?: any): Promise<T> {
   const { baseUrl } = await getCredentials();
   const base = baseUrl || CONFIG.API_BASE_URL;
   const url = buildRequestUrl(base, path);
-  const res = await fetch(url, {
-    method: 'POST',
-    headers: await buildHeaders(),
-    body: body ? JSON.stringify(body) : '{}',
-  });
+  const controller = new AbortController();
+  const timeoutMs = 15000; // 15s
+  const t = setTimeout(() => controller.abort(), timeoutMs);
+  let res: Response;
+  try {
+    res = await fetch(url, {
+      method: 'POST',
+      headers: await buildHeaders(),
+      body: body ? JSON.stringify(body) : '{}',
+      signal: controller.signal,
+    } as RequestInit);
+  } catch (e: any) {
+    clearTimeout(t);
+    if (e?.name === 'AbortError') {
+      throw new Error(`Request timeout after ${timeoutMs / 1000}s: ${url}`);
+    }
+    throw new Error(`Network error calling ${url}: ${e?.message || e}`);
+  } finally {
+    clearTimeout(t);
+  }
   const text = await res.text();
   if (!res.ok) {
     throw new Error(`HTTP ${res.status} ${res.statusText}: ${text.slice(0, 300)}`);
