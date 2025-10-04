@@ -7,8 +7,14 @@
     'website': '',
     'category': 'Human Resources',
     'license': 'LGPL-3',
-    'depends': ['hr'],
+    'depends': [
+        'hr',
+        'hr_contract',
+        'hr_attendance',
+        'hr_holidays',
+    ],
     'data': [
+        'security/ir.model.access.csv',
         'views/hr_employee_views.xml',
     ],
     'installable': True,

@@ -165,3 +165,304 @@ class OdhrHrApiController(http.Controller):
         status = 200 if ok else 401
         payload = {"ok": ok, "reason": reason, "info": info}
         return Response(json.dumps(payload), status=status, mimetype="application/json")
+
+    # ----------------------
+    # Additional HR Endpoints
+    # ----------------------
+
+    @http.route(
+        "/odhr/api/departments",
+        type="http",
+        auth="public",
+        methods=["POST"],
+        csrf=False,
+    )
+    def list_departments(self, **kwargs):
+        ok, reason, info = self._authenticate_basic()
+        if not ok:
+            return Response(json.dumps({"error": "unauthorized", "reason": reason, "info": info}), status=401, mimetype="application/json")
+        try:
+            raw = request.httprequest.get_data(cache=False, as_text=True) or "{}"
+            params = json.loads(raw)
+        except Exception:
+            return Response(json.dumps({"error": "invalid_request", "message": "Invalid JSON body"}), status=400, mimetype="application/json")
+        limit = int(params.get("limit", 50))
+        offset = int(params.get("offset", 0))
+        search = (params.get("search") or "").strip()
+
+        domain = []
+        if search:
+            domain = ["|", ("name", "ilike", search), ("complete_name", "ilike", search)]
+
+        fields = [
+            "name",
+            "complete_name",
+            "parent_id",
+            "manager_id",
+        ]
+        deps = request.env["hr.department"].sudo().search(domain, limit=limit, offset=offset)
+        data = deps.read(fields)
+
+        def m2o(val):
+            if isinstance(val, (list, tuple)) and len(val) == 2:
+                return {"id": val[0], "name": val[1]}
+            return None
+
+        for rec in data:
+            if rec.get("parent_id"):
+                rec["parent_id"] = m2o(rec["parent_id"])  # type: ignore
+            if rec.get("manager_id"):
+                rec["manager_id"] = m2o(rec["manager_id"])  # type: ignore
+        payload = {"count": len(data), "limit": limit, "offset": offset, "items": data}
+        return Response(json.dumps(payload), status=200, mimetype="application/json")
+
+    @http.route(
+        "/odhr/api/contracts",
+        type="http",
+        auth="public",
+        methods=["POST"],
+        csrf=False,
+    )
+    def list_contracts(self, **kwargs):
+        ok, reason, info = self._authenticate_basic()
+        if not ok:
+            return Response(json.dumps({"error": "unauthorized", "reason": reason, "info": info}), status=401, mimetype="application/json")
+        try:
+            raw = request.httprequest.get_data(cache=False, as_text=True) or "{}"
+            params = json.loads(raw)
+        except Exception:
+            return Response(json.dumps({"error": "invalid_request", "message": "Invalid JSON body"}), status=400, mimetype="application/json")
+        limit = int(params.get("limit", 50))
+        offset = int(params.get("offset", 0))
+        employee_id = params.get("employee_id")
+        active_only = bool(params.get("active_only", True))
+
+        domain = []
+        if employee_id:
+            domain.append(("employee_id", "=", int(employee_id)))
+        if active_only:
+            domain.append(("state", "=", "open"))  # active/ongoing
+
+        fields = [
+            "name",
+            "employee_id",
+            "date_start",
+            "date_end",
+            "state",
+            "job_title",
+            "department_id",
+            "company_id",
+        ]
+        contracts = request.env["hr.contract"].sudo().search(domain, limit=limit, offset=offset)
+        data = contracts.read(fields)
+
+        def m2o(val):
+            if isinstance(val, (list, tuple)) and len(val) == 2:
+                return {"id": val[0], "name": val[1]}
+            return None
+
+        for rec in data:
+            for key in ("employee_id", "department_id", "company_id"):
+                if rec.get(key):
+                    rec[key] = m2o(rec[key])  # type: ignore
+        payload = {"count": len(data), "limit": limit, "offset": offset, "items": data}
+        return Response(json.dumps(payload), status=200, mimetype="application/json")
+
+    @http.route(
+        "/odhr/api/attendances",
+        type="http",
+        auth="public",
+        methods=["POST"],
+        csrf=False,
+    )
+    def list_attendances(self, **kwargs):
+        ok, reason, info = self._authenticate_basic()
+        if not ok:
+            return Response(json.dumps({"error": "unauthorized", "reason": reason, "info": info}), status=401, mimetype="application/json")
+        try:
+            raw = request.httprequest.get_data(cache=False, as_text=True) or "{}"
+            params = json.loads(raw)
+        except Exception:
+            return Response(json.dumps({"error": "invalid_request", "message": "Invalid JSON body"}), status=400, mimetype="application/json")
+        limit = int(params.get("limit", 50))
+        offset = int(params.get("offset", 0))
+        employee_id = params.get("employee_id")
+        date_from = params.get("date_from")  # ISO string
+        date_to = params.get("date_to")
+
+        domain = []
+        if employee_id:
+            domain.append(("employee_id", "=", int(employee_id)))
+        if date_from:
+            domain.append(("check_in", ">=", date_from))
+        if date_to:
+            domain.append(("check_in", "<=", date_to))
+
+        fields = [
+            "employee_id",
+            "check_in",
+            "check_out",
+            "worked_hours",
+        ]
+        recs = request.env["hr.attendance"].sudo().search(domain, limit=limit, offset=offset)
+        data = recs.read(fields)
+
+        def m2o(val):
+            if isinstance(val, (list, tuple)) and len(val) == 2:
+                return {"id": val[0], "name": val[1]}
+            return None
+
+        for rec in data:
+            if rec.get("employee_id"):
+                rec["employee_id"] = m2o(rec["employee_id"])  # type: ignore
+        payload = {"count": len(data), "limit": limit, "offset": offset, "items": data}
+        return Response(json.dumps(payload), status=200, mimetype="application/json")
+
+    @http.route(
+        "/odhr/api/attendances/create",
+        type="http",
+        auth="public",
+        methods=["POST"],
+        csrf=False,
+    )
+    def create_attendance(self, **kwargs):
+        ok, reason, info = self._authenticate_basic()
+        if not ok:
+            return Response(json.dumps({"error": "unauthorized", "reason": reason, "info": info}), status=401, mimetype="application/json")
+        try:
+            raw = request.httprequest.get_data(cache=False, as_text=True) or "{}"
+            params = json.loads(raw)
+        except Exception:
+            return Response(json.dumps({"error": "invalid_request", "message": "Invalid JSON body"}), status=400, mimetype="application/json")
+
+        employee_id = params.get("employee_id")
+        check_in = params.get("check_in")
+        check_out = params.get("check_out")
+        if not employee_id or not check_in:
+            return Response(json.dumps({"error": "missing_params", "message": "employee_id and check_in are required"}), status=400, mimetype="application/json")
+        vals = {
+            "employee_id": int(employee_id),
+            "check_in": check_in,
+        }
+        if check_out:
+            vals["check_out"] = check_out
+        att = request.env["hr.attendance"].sudo().create(vals)
+        data = att.read(["employee_id", "check_in", "check_out", "worked_hours"])[0]
+
+        def m2o(val):
+            if isinstance(val, (list, tuple)) and len(val) == 2:
+                return {"id": val[0], "name": val[1]}
+            return None
+
+        if data.get("employee_id"):
+            data["employee_id"] = m2o(data["employee_id"])  # type: ignore
+        return Response(json.dumps(data), status=201, mimetype="application/json")
+
+    @http.route(
+        "/odhr/api/leaves",
+        type="http",
+        auth="public",
+        methods=["POST"],
+        csrf=False,
+    )
+    def list_leaves(self, **kwargs):
+        ok, reason, info = self._authenticate_basic()
+        if not ok:
+            return Response(json.dumps({"error": "unauthorized", "reason": reason, "info": info}), status=401, mimetype="application/json")
+        try:
+            raw = request.httprequest.get_data(cache=False, as_text=True) or "{}"
+            params = json.loads(raw)
+        except Exception:
+            return Response(json.dumps({"error": "invalid_request", "message": "Invalid JSON body"}), status=400, mimetype="application/json")
+        limit = int(params.get("limit", 50))
+        offset = int(params.get("offset", 0))
+        employee_id = params.get("employee_id")
+        state = (params.get("state") or "").strip()
+        date_from = params.get("date_from")
+        date_to = params.get("date_to")
+
+        domain = []
+        if employee_id:
+            domain.append(("employee_id", "=", int(employee_id)))
+        if state:
+            domain.append(("state", "=", state))
+        if date_from:
+            domain.append(("request_date_from", ">=", date_from))
+        if date_to:
+            domain.append(("request_date_to", "<=", date_to))
+
+        fields = [
+            "name",
+            "employee_id",
+            "holiday_status_id",
+            "request_date_from",
+            "request_date_to",
+            "number_of_days",
+            "state",
+        ]
+        recs = request.env["hr.leave"].sudo().search(domain, limit=limit, offset=offset)
+        data = recs.read(fields)
+
+        def m2o(val):
+            if isinstance(val, (list, tuple)) and len(val) == 2:
+                return {"id": val[0], "name": val[1]}
+            return None
+
+        for rec in data:
+            if rec.get("employee_id"):
+                rec["employee_id"] = m2o(rec["employee_id"])  # type: ignore
+            if rec.get("holiday_status_id"):
+                rec["holiday_status_id"] = m2o(rec["holiday_status_id"])  # type: ignore
+        payload = {"count": len(data), "limit": limit, "offset": offset, "items": data}
+        return Response(json.dumps(payload), status=200, mimetype="application/json")
+
+    @http.route(
+        "/odhr/api/leaves/create",
+        type="http",
+        auth="public",
+        methods=["POST"],
+        csrf=False,
+    )
+    def create_leave(self, **kwargs):
+        ok, reason, info = self._authenticate_basic()
+        if not ok:
+            return Response(json.dumps({"error": "unauthorized", "reason": reason, "info": info}), status=401, mimetype="application/json")
+        try:
+            raw = request.httprequest.get_data(cache=False, as_text=True) or "{}"
+            params = json.loads(raw)
+        except Exception:
+            return Response(json.dumps({"error": "invalid_request", "message": "Invalid JSON body"}), status=400, mimetype="application/json")
+
+        required = ["employee_id", "holiday_status_id", "request_date_from", "request_date_to"]
+        missing = [k for k in required if not params.get(k)]
+        if missing:
+            return Response(json.dumps({"error": "missing_params", "message": f"Missing: {', '.join(missing)}"}), status=400, mimetype="application/json")
+
+        vals = {
+            "employee_id": int(params["employee_id"]),
+            "holiday_status_id": int(params["holiday_status_id"]),
+            "request_date_from": params["request_date_from"],
+            "request_date_to": params["request_date_to"],
+            "name": params.get("name") or "Leave Request",
+        }
+        leave = request.env["hr.leave"].sudo().create(vals)
+        data = leave.read([
+            "name",
+            "employee_id",
+            "holiday_status_id",
+            "request_date_from",
+            "request_date_to",
+            "number_of_days",
+            "state",
+        ])[0]
+
+        def m2o(val):
+            if isinstance(val, (list, tuple)) and len(val) == 2:
+                return {"id": val[0], "name": val[1]}
+            return None
+
+        if data.get("employee_id"):
+            data["employee_id"] = m2o(data["employee_id"])  # type: ignore
+        if data.get("holiday_status_id"):
+            data["holiday_status_id"] = m2o(data["holiday_status_id"])  # type: ignore
+        return Response(json.dumps(data), status=201, mimetype="application/json")
