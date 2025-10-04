@@ -65,13 +65,18 @@ class OdhrHrApiController(http.Controller):
                 return False, 'malformed_authorization', info
             login, password = raw.split(':', 1)
             info['login'] = login
-            # Odoo 18: set session.db then call authenticate(login, password)
+            # Prefer the legacy signature authenticate(db, login, password)
+            # Fallback to setting session.db and calling authenticate(login, password)
             try:
-                request.session.db = db
-            except Exception:
-                pass
-            try:
-                uid = request.session.authenticate(login, password)
+                try:
+                    uid = request.session.authenticate(db, login, password)  # type: ignore[arg-type]
+                except TypeError:
+                    # Some versions expect session.db pre-set
+                    try:
+                        request.session.db = db
+                    except Exception:
+                        pass
+                    uid = request.session.authenticate(login, password)
             except Exception as e2:
                 info['exception'] = str(e2)
                 return False, 'bad_credentials', info

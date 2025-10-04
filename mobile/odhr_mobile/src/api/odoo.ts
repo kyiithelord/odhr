@@ -1,5 +1,6 @@
 // Simple Odoo API client for the mobile/web UI
 // NOTE: Do not hardcode secrets in code. Provide login/apiKey at runtime or via secure storage.
+import { Buffer } from 'buffer';
 
 export type OdooConfig = {
   baseUrl: string; // e.g., https://your-odoo-host
@@ -11,8 +12,7 @@ export type OdooConfig = {
 function basicAuth(login: string, apiKey: string) {
   // For native, you may need a base64 polyfill if btoa isn't available
   if (typeof btoa === 'function') return 'Basic ' + btoa(`${login}:${apiKey}`);
-  // Fallback: Node-like environments
-  // eslint-disable-next-line @typescript-eslint/no-var-requires
+  // Fallback: environments without btoa (e.g., React Native)
   const buff = Buffer.from(`${login}:${apiKey}`, 'utf-8');
   return 'Basic ' + buff.toString('base64');
 }
