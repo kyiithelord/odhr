@@ -45,6 +45,17 @@ class OdhrHrApiController(http.Controller):
         if not db:
             return False, 'missing_db', info
         info['db'] = db
+        # If a valid session already exists and matches the db, accept it
+        try:
+            if getattr(request, 'session', None) and getattr(request.session, 'uid', False):
+                # Ensure session db matches requested db
+                if getattr(request.session, 'db', None) == db:
+                    info['uid'] = request.session.uid
+                    info['login'] = request.env.user.login
+                    return True, 'session', info
+        except Exception:
+            pass
+
         auth = request.httprequest.headers.get('Authorization')
         if not auth or not auth.lower().startswith('basic '):
             return False, 'missing_authorization', info
@@ -326,17 +337,20 @@ class OdhrHrApiController(http.Controller):
         csrf=False,
     )
     def list_attendances(self, **kwargs):
+        # Handle CORS preflight
+        if request.httprequest.method == 'OPTIONS':
+            return self._corsify(Response(status=204))
         ip = request.httprequest.remote_addr or 'unknown'
         if self._rate_limited(f"{ip}:/odhr/api/attendances"):
-            return Response(json.dumps({"error": "rate_limited", "message": "Too many requests"}), status=429, mimetype="application/json")
+            return self._corsify(Response(json.dumps({"error": "rate_limited", "message": "Too many requests"}), status=429, mimetype="application/json"))
         ok, reason, info = self._authenticate_basic()
         if not ok:
-            return Response(json.dumps({"error": "unauthorized", "reason": reason, "info": info}), status=401, mimetype="application/json")
+            return self._corsify(Response(json.dumps({"error": "unauthorized", "reason": reason, "info": info}), status=401, mimetype="application/json"))
         try:
             raw = request.httprequest.get_data(cache=False, as_text=True) or "{}"
             params = json.loads(raw)
         except Exception:
-            return Response(json.dumps({"error": "invalid_request", "message": "Invalid JSON body"}), status=400, mimetype="application/json")
+            return self._corsify(Response(json.dumps({"error": "invalid_request", "message": "Invalid JSON body"}), status=400, mimetype="application/json"))
         limit = int(params.get("limit", 50))
         offset = int(params.get("offset", 0))
         employee_id = params.get("employee_id")
@@ -379,17 +393,19 @@ class OdhrHrApiController(http.Controller):
         csrf=False,
     )
     def create_attendance(self, **kwargs):
+        if request.httprequest.method == 'OPTIONS':
+            return self._corsify(Response(status=204))
         ip = request.httprequest.remote_addr or 'unknown'
         if self._rate_limited(f"{ip}:/odhr/api/attendances/create"):
-            return Response(json.dumps({"error": "rate_limited", "message": "Too many requests"}), status=429, mimetype="application/json")
+            return self._corsify(Response(json.dumps({"error": "rate_limited", "message": "Too many requests"}), status=429, mimetype="application/json"))
         ok, reason, info = self._authenticate_basic()
         if not ok:
-            return Response(json.dumps({"error": "unauthorized", "reason": reason, "info": info}), status=401, mimetype="application/json")
+            return self._corsify(Response(json.dumps({"error": "unauthorized", "reason": reason, "info": info}), status=401, mimetype="application/json"))
         try:
             raw = request.httprequest.get_data(cache=False, as_text=True) or "{}"
             params = json.loads(raw)
         except Exception:
-            return Response(json.dumps({"error": "invalid_request", "message": "Invalid JSON body"}), status=400, mimetype="application/json")
+            return self._corsify(Response(json.dumps({"error": "invalid_request", "message": "Invalid JSON body"}), status=400, mimetype="application/json"))
 
         employee_id = params.get("employee_id")
         check_in = params.get("check_in")
@@ -412,7 +428,7 @@ class OdhrHrApiController(http.Controller):
 
         if data.get("employee_id"):
             data["employee_id"] = m2o(data["employee_id"])  # type: ignore
-        return Response(json.dumps(data), status=201, mimetype="application/json")
+        return self._corsify(Response(json.dumps(data), status=201, mimetype="application/json"))
 
     @http.route(
         "/odhr/api/leaves",
@@ -422,17 +438,19 @@ class OdhrHrApiController(http.Controller):
         csrf=False,
     )
     def list_leaves(self, **kwargs):
+        if request.httprequest.method == 'OPTIONS':
+            return self._corsify(Response(status=204))
         ip = request.httprequest.remote_addr or 'unknown'
         if self._rate_limited(f"{ip}:/odhr/api/leaves"):
-            return Response(json.dumps({"error": "rate_limited", "message": "Too many requests"}), status=429, mimetype="application/json")
+            return self._corsify(Response(json.dumps({"error": "rate_limited", "message": "Too many requests"}), status=429, mimetype="application/json"))
         ok, reason, info = self._authenticate_basic()
         if not ok:
-            return Response(json.dumps({"error": "unauthorized", "reason": reason, "info": info}), status=401, mimetype="application/json")
+            return self._corsify(Response(json.dumps({"error": "unauthorized", "reason": reason, "info": info}), status=401, mimetype="application/json"))
         try:
             raw = request.httprequest.get_data(cache=False, as_text=True) or "{}"
             params = json.loads(raw)
         except Exception:
-            return Response(json.dumps({"error": "invalid_request", "message": "Invalid JSON body"}), status=400, mimetype="application/json")
+            return self._corsify(Response(json.dumps({"error": "invalid_request", "message": "Invalid JSON body"}), status=400, mimetype="application/json"))
         limit = int(params.get("limit", 50))
         offset = int(params.get("offset", 0))
         employee_id = params.get("employee_id")
@@ -483,17 +501,19 @@ class OdhrHrApiController(http.Controller):
         csrf=False,
     )
     def create_leave(self, **kwargs):
+        if request.httprequest.method == 'OPTIONS':
+            return self._corsify(Response(status=204))
         ip = request.httprequest.remote_addr or 'unknown'
         if self._rate_limited(f"{ip}:/odhr/api/leaves/create"):
-            return Response(json.dumps({"error": "rate_limited", "message": "Too many requests"}), status=429, mimetype="application/json")
+            return self._corsify(Response(json.dumps({"error": "rate_limited", "message": "Too many requests"}), status=429, mimetype="application/json"))
         ok, reason, info = self._authenticate_basic()
         if not ok:
-            return Response(json.dumps({"error": "unauthorized", "reason": reason, "info": info}), status=401, mimetype="application/json")
+            return self._corsify(Response(json.dumps({"error": "unauthorized", "reason": reason, "info": info}), status=401, mimetype="application/json"))
         try:
             raw = request.httprequest.get_data(cache=False, as_text=True) or "{}"
             params = json.loads(raw)
         except Exception:
-            return Response(json.dumps({"error": "invalid_request", "message": "Invalid JSON body"}), status=400, mimetype="application/json")
+            return self._corsify(Response(json.dumps({"error": "invalid_request", "message": "Invalid JSON body"}), status=400, mimetype="application/json"))
 
         required = ["employee_id", "holiday_status_id", "request_date_from", "request_date_to"]
         missing = [k for k in required if not params.get(k)]

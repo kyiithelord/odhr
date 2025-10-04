@@ -1,9 +1,15 @@
 import React, { useEffect, useState, useCallback } from 'react';
-import { View, Text, TextInput, FlatList, TouchableOpacity, StyleSheet, ActivityIndicator, RefreshControl, Button } from 'react-native';
+import { View, Text, FlatList, StyleSheet, ActivityIndicator, RefreshControl } from 'react-native';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { RootStackParamList } from '../../App';
 import { listEmployees, EmployeeSummary } from '../services/api';
 import { clearCredentials } from '../services/storage';
+import { Header } from '../ui/components/Header';
+import { SearchBar } from '../ui/components/SearchBar';
+import { EmployeeCard } from '../ui/components/EmployeeCard';
+import { PrimaryButton } from '../ui/components/PrimaryButton';
+import { theme } from '../ui/theme';
+import { BottomBar } from '../ui/components/BottomBar';
 
  type Props = NativeStackScreenProps<RootStackParamList, 'Employees'>;
 
@@ -63,37 +69,31 @@ export default function EmployeeListScreen({ navigation }: Props) {
   };
 
   const renderItem = ({ item }: { item: EmployeeSummary }) => (
-    <TouchableOpacity
-      style={styles.row}
+    <EmployeeCard
+      name={item.name}
+      jobTitle={item.job_title}
+      email={item.work_email}
       onPress={() => navigation.navigate('EmployeeDetail', { id: item.id, name: item.name })}
-    >
-      <Text style={styles.name}>{item.name}</Text>
-      <Text style={styles.secondary}>{item.job_title || ''}</Text>
-      <Text style={styles.secondary}>{item.work_email || ''}</Text>
-    </TouchableOpacity>
+    />
   );
 
   return (
     <View style={styles.container}>
-      <View style={styles.searchRow}>
-        <TextInput
-          style={styles.search}
+      <Header title="Employees" right="Settings" onRightPress={() => navigation.replace('Login')} />
+      <View style={styles.body}>
+        <SearchBar
+          style={{ marginBottom: theme.spacing(3) }}
           placeholder="Search name or email"
           value={search}
           onChangeText={setSearch}
           onSubmitEditing={onSearchSubmit}
-          returnKeyType="search"
         />
-        <View style={{ marginTop: 8 }}>
-          <Button title="Login/Settings" onPress={() => navigation.replace('Login')} />
-        </View>
-      </View>
       {error ? (
-        <View>
+        <View style={{ marginBottom: theme.spacing(3) }}>
           <Text style={styles.error}>Error: {error}</Text>
-          <View style={{ flexDirection: 'row', gap: 12, paddingHorizontal: 12, paddingBottom: 8 }}>
-            <Button title="Open Login" onPress={() => navigation.replace('Login')} />
-            <Button title="Clear Saved URL" onPress={async () => { await clearCredentials(); setItems([]); setOffset(0); setHasMore(true); setError(null); }} />
+          <View style={{ flexDirection: 'row', gap: theme.spacing(3), marginTop: theme.spacing(2) }}>
+            <PrimaryButton title="Open Login" onPress={() => navigation.replace('Login')} />
+            <PrimaryButton title="Clear Saved URL" onPress={async () => { await clearCredentials(); setItems([]); setOffset(0); setHasMore(true); setError(null); }} />
           </View>
         </View>
       ) : null}
@@ -107,19 +107,17 @@ export default function EmployeeListScreen({ navigation }: Props) {
         onEndReachedThreshold={0.4}
         onEndReached={onEndReached}
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
-        ListFooterComponent={loading ? <ActivityIndicator style={{ margin: 16 }} /> : null}
+        ListFooterComponent={loading ? <ActivityIndicator style={{ margin: theme.spacing(4) }} /> : null}
       />
+      </View>
+      <BottomBar active="employees" navigation={navigation as any} />
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#fff' },
-  searchRow: { padding: 12, borderBottomWidth: 1, borderColor: '#eee' },
-  search: { borderWidth: 1, borderColor: '#ccc', borderRadius: 6, padding: 10 },
-  row: { padding: 12, borderBottomWidth: 1, borderColor: '#eee' },
-  name: { fontSize: 16, fontWeight: '600' },
-  secondary: { color: '#666', marginTop: 2 },
-  error: { color: '#b00020', padding: 12 },
-  empty: { color: '#666', padding: 12 },
+  container: { flex: 1, backgroundColor: theme.colors.bg },
+  body: { flex: 1, padding: theme.spacing(4) },
+  error: { color: theme.colors.danger },
+  empty: { color: theme.colors.muted },
 });

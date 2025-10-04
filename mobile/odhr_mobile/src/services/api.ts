@@ -94,3 +94,53 @@ export async function listEmployees(params: { limit?: number; offset?: number; s
 export async function getEmployee(id: number) {
   return apiPost<EmployeeSummary & { image_1920?: string | false }>(`/odhr/api/employees/${id}`);
 }
+
+// Leaves
+export type LeaveItem = {
+  id: number;
+  employee_id: { id: number; name: string } | null;
+  holiday_status_id: { id: number; name: string } | null;
+  request_date_from?: string;
+  request_date_to?: string;
+  number_of_days?: number;
+  state?: string;
+};
+
+export type LeavesResponse = {
+  count: number;
+  limit: number;
+  offset: number;
+  items: LeaveItem[];
+};
+
+export async function listLeaves(params: { employee_id?: number; state?: string; date_from?: string; date_to?: string; limit?: number; offset?: number }) {
+  return apiPost<LeavesResponse>('/odhr/api/leaves', params);
+}
+
+export async function createLeave(params: { employee_id: number; holiday_status_id: number; request_date_from: string; request_date_to: string; name?: string }) {
+  return apiPost<LeaveItem>('/odhr/api/leaves/create', params);
+}
+
+// Attendance
+export type AttendanceItem = {
+  id: number;
+  employee_id: { id: number; name: string } | null;
+  check_in?: string;
+  check_out?: string | null;
+  worked_hours?: number;
+};
+
+export type AttendancesResponse = {
+  count: number;
+  limit: number;
+  offset: number;
+  items: AttendanceItem[];
+};
+
+export async function listAttendances(params: { employee_id?: number; date_from?: string; date_to?: string; limit?: number; offset?: number }) {
+  return apiPost<AttendancesResponse>('/odhr/api/attendances', params);
+}
+
+export async function createAttendance(params: { employee_id: number; check_in: string; check_out?: string }) {
+  return apiPost<AttendanceItem>('/odhr/api/attendances/create', params);
+}
