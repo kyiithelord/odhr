@@ -4,6 +4,7 @@ import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { RootStackParamList } from '../../App';
 import { CONFIG } from '../config';
 import { getCredentials, saveCredentials } from '../services/storage';
+import { useAuth } from '../contexts/AuthContext';
 
  type Props = NativeStackScreenProps<RootStackParamList, 'Login'>;
 
@@ -11,6 +12,7 @@ export default function LoginScreen({ navigation }: Props) {
   const [login, setLogin] = useState('');
   const [apiKey, setApiKey] = useState('');
   const [baseUrl, setBaseUrl] = useState(CONFIG.API_BASE_URL);
+  const { signIn } = useAuth();
 
   useEffect(() => {
     (async () => {
@@ -27,7 +29,9 @@ export default function LoginScreen({ navigation }: Props) {
       return;
     }
     await saveCredentials(login, apiKey, baseUrl || CONFIG.API_BASE_URL);
-    navigation.replace('Employees');
+    const ok = await signIn({ login, apiKey, baseUrl });
+    if (!ok) return;
+    // Navigation is handled by AuthContext switching stacks in App.tsx
   }
 
   const content = (

@@ -1,20 +1,23 @@
 import React, { useEffect, useState, useCallback } from 'react';
-import { View, Text, FlatList, StyleSheet, ActivityIndicator } from 'react-native';
+import { View, Text, FlatList, StyleSheet, ActivityIndicator, TouchableOpacity, Alert } from 'react-native';
 import { Header } from '../ui/components/Header';
 import { PrimaryButton } from '../ui/components/PrimaryButton';
 import { theme } from '../ui/theme';
 import { InlineAlert } from '../ui/components/InlineAlert';
 import { SkeletonList } from '../ui/components/Skeleton';
 import { listLeaves, LeavesResponse, LeaveItem } from '../services/api';
-import type { NativeStackScreenProps } from '@react-navigation/native-stack';
-import { RootStackParamList } from '../../App';
+// Tab screen; keep navigation typing generic to avoid coupling
+import { useAuth } from '../contexts/AuthContext';
+import { approveLeave, rejectLeave } from '../api/odoo';
 
- type Props = NativeStackScreenProps<RootStackParamList, 'Leaves'>;
+ type Props = any;
 
 export default function LeavesListScreen({ navigation }: Props) {
   const [data, setData] = useState<LeavesResponse | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [actionMsg, setActionMsg] = useState<string | null>(null);
+  const { cfg, hasRole } = useAuth();
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -31,18 +34,50 @@ export default function LeavesListScreen({ navigation }: Props) {
 
   useEffect(() => { load(); }, [load]);
 
-  const renderItem = ({ item }: { item: LeaveItem }) => (
-    <View style={styles.card}>
-      <Text style={styles.title}>{item.holiday_status_id?.name || 'Leave'}</Text>
-      <Text style={styles.meta}>{item.request_date_from} → {item.request_date_to}</Text>
-      {item.state ? <Text style={styles.badge}>{item.state}</Text> : null}
-    </View>
-  );
+  async function onApprove(id: number) {
+    if (!cfg) return;
+    try {
+      await approveLeave(cfg, id);
+      setActionMsg('Leave approved');
+      await load();
+    } catch (e: any) {
+      Alert.alert('Error', e?.message || 'Approve failed');
+    }
+  }
+
+  async function onReject(id: number) {
+    if (!cfg) return;
+    try {
+      await rejectLeave(cfg, id, 'Rejected via mobile');
+      setActionMsg('Leave rejected');
+      await load();
+    } catch (e: any) {
+      Alert.alert('Error', e?.message || 'Reject failed');
+    }
+  }
+
+  const renderItem = ({ item }: { item: LeaveItem }) => {
+    const canModerate = hasRole('manager', 'hr', 'admin');
+    return (
+      <View style={styles.card}>
+        <Text style={styles.title}>{item.holiday_status_id?.name || 'Leave'}</Text>
+        <Text style={styles.meta}>{item.request_date_from} → {item.request_date_to}</Text>
+        {item.state ? <Text style={styles.badge}>{item.state}</Text> : null}
+        {canModerate && item.state && ['confirm','validate1'].includes(item.state) ? (
+          <View style={styles.actionsRow}>
+            <TouchableOpacity onPress={() => onApprove(item.id)}><Text style={[styles.actionBtn, { color: theme.colors.success }]}>Approve</Text></TouchableOpacity>
+            <TouchableOpacity onPress={() => onReject(item.id)}><Text style={[styles.actionBtn, { color: theme.colors.error }]}>Reject</Text></TouchableOpacity>
+          </View>
+        ) : null}
+      </View>
+    );
+  };
 
   return (
     <View style={styles.container}>
       <Header title="Leaves" right="New" onRightPress={() => navigation.navigate('LeaveCreate')} />
       <View style={styles.body}>
+        {actionMsg ? <InlineAlert text={actionMsg} style={{ marginBottom: theme.spacing(3) }} /> : null}
         {error ? <InlineAlert text={error} style={{ marginBottom: theme.spacing(3) }} /> : null}
         {loading && !error ? <SkeletonList count={5} /> : null}
         {!loading && data ? (
@@ -76,4 +111,6 @@ const styles = StyleSheet.create({
   meta: { color: theme.colors.muted, marginTop: 4 },
   badge: { marginTop: 6, color: theme.colors.primary, fontWeight: '600' },
   empty: { color: theme.colors.muted },
+  actionsRow: { flexDirection: 'row', gap: theme.spacing(4), marginTop: theme.spacing(3) },
+  actionBtn: { fontWeight: '700' },
 });

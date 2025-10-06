@@ -5,12 +5,14 @@ import { PrimaryButton } from '../ui/components/PrimaryButton';
 import { InlineAlert } from '../ui/components/InlineAlert';
 import { theme } from '../ui/theme';
 import { getCredentials, saveCredentials, clearCredentials } from '../services/storage';
+import { useAuth } from '../contexts/AuthContext';
 
 export default function SettingsScreen() {
   const [login, setLogin] = useState('');
   const [apiKey, setApiKey] = useState('');
   const [baseUrl, setBaseUrl] = useState('');
   const [msg, setMsg] = useState<string | null>(null);
+  const { signOut, me } = useAuth();
 
   useEffect(() => {
     (async () => {
@@ -34,11 +36,18 @@ export default function SettingsScreen() {
     setTimeout(() => setMsg(null), 2000);
   }
 
+  async function onSignOut() {
+    await signOut();
+  }
+
   return (
     <View style={styles.container}>
       <Header title="Settings" />
       <View style={styles.body}>
         {msg ? <InlineAlert text={msg} style={{ marginBottom: theme.spacing(3) }} /> : null}
+        {me ? (
+          <InlineAlert text={`Signed in as ${me.name} (${me.login}) • Roles: ${me.roles.join(', ')}`} style={{ marginBottom: theme.spacing(3) }} />
+        ) : null}
         <Text style={styles.label}>Base URL (include ?db=...)</Text>
         <TextInput style={styles.input} value={baseUrl} onChangeText={setBaseUrl} placeholder="http://localhost:8069/?db=odhr" />
         <Text style={styles.label}>Login (email)</Text>
@@ -48,6 +57,8 @@ export default function SettingsScreen() {
         <PrimaryButton title="Save" onPress={onSave} />
         <View style={{ height: theme.spacing(2) }} />
         <PrimaryButton title="Clear" onPress={onClear} />
+        <View style={{ height: theme.spacing(2) }} />
+        <PrimaryButton title="Sign out" onPress={onSignOut} />
       </View>
     </View>
   );

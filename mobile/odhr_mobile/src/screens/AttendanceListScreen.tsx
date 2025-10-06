@@ -5,15 +5,20 @@ import { InlineAlert } from '../ui/components/InlineAlert';
 import { SkeletonList } from '../ui/components/Skeleton';
 import { theme } from '../ui/theme';
 import { listAttendances, AttendanceItem, AttendancesResponse } from '../services/api';
-import type { NativeStackScreenProps } from '@react-navigation/native-stack';
-import { RootStackParamList } from '../../App';
+// Tab screen; keep navigation typing generic to avoid coupling
+import { useAuth } from '../contexts/AuthContext';
+import { attendanceCheckIn, attendanceCheckOut } from '../api/odoo';
+import { getCurrentPosition } from '../services/geo';
+import { enqueueAttendanceAction } from '../services/offline';
 
- type Props = NativeStackScreenProps<RootStackParamList, 'Attendance'>;
+ type Props = any;
 
 export default function AttendanceListScreen({ navigation }: Props) {
   const [data, setData] = useState<AttendancesResponse | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [actionMsg, setActionMsg] = useState<string | null>(null);
+  const { cfg } = useAuth();
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -30,6 +35,23 @@ export default function AttendanceListScreen({ navigation }: Props) {
 
   useEffect(() => { load(); }, [load]);
 
+  async function doCheck(kind: 'in' | 'out') {
+    if (!cfg) return;
+    setActionMsg(null);
+    try {
+      const pos = await getCurrentPosition();
+      const payload = { lat: pos?.lat, lng: pos?.lng };
+      if (kind === 'in') await attendanceCheckIn(cfg, payload);
+      else await attendanceCheckOut(cfg, payload);
+      setActionMsg(kind === 'in' ? 'Checked in' : 'Checked out');
+      await load();
+    } catch (e: any) {
+      // Offline or failed: enqueue for later
+      await enqueueAttendanceAction({ kind: kind === 'in' ? 'checkin' : 'checkout', payload: { manual: true, reason: 'offline' }, ts: Date.now() });
+      setActionMsg('No network; queued for sync');
+    }
+  }
+
   const renderItem = ({ item }: { item: AttendanceItem }) => (
     <View style={styles.card}>
       <Text style={styles.title}>{item.employee_id?.name || 'Employee'}</Text>
@@ -42,6 +64,11 @@ export default function AttendanceListScreen({ navigation }: Props) {
     <View style={styles.container}>
       <Header title="Attendance" right="New" onRightPress={() => navigation.navigate('AttendanceCreate')} />
       <View style={styles.body}>
+        <View style={styles.actionsRow}>
+          <Text style={styles.actionBtn} onPress={() => doCheck('in')}>Check In</Text>
+          <Text style={styles.actionBtn} onPress={() => doCheck('out')}>Check Out</Text>
+        </View>
+        {actionMsg ? <InlineAlert text={actionMsg} style={{ marginBottom: theme.spacing(3) }} /> : null}
         {error ? <InlineAlert text={error} style={{ marginBottom: theme.spacing(3) }} /> : null}
         {loading && !error ? <SkeletonList count={5} /> : null}
         {!loading && data ? (
@@ -63,6 +90,8 @@ export default function AttendanceListScreen({ navigation }: Props) {
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: theme.colors.bg },
   body: { flex: 1, padding: theme.spacing(4) },
+  actionsRow: { flexDirection: 'row', gap: theme.spacing(3), marginBottom: theme.spacing(3) },
+  actionBtn: { color: theme.colors.primary, fontWeight: '700' },
   card: {
     borderWidth: 1,
     borderColor: theme.colors.border,
