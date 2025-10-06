@@ -25,7 +25,6 @@ async function httpJson<T>(url: string, method: 'POST' | 'GET', body: any | unde
       ...headers,
     },
     body: body ? JSON.stringify(body) : undefined,
-    credentials: 'include',
   });
   let data: any = null;
   const text = await resp.text();

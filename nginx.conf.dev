@@ -1,0 +1,21 @@
+server {
+    listen 8080;
+    server_name _;
+
+    # Proxy all requests to Odoo
+    location / {
+        proxy_pass http://192.168.99.50:8069; # CHANGE to your PC LAN IP if different
+        proxy_set_header Host $host;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+
+        # CORS for browser (Expo Web)
+        add_header 'Access-Control-Allow-Origin' '*' always;
+        add_header 'Access-Control-Allow-Methods' 'GET, POST, OPTIONS' always;
+        add_header 'Access-Control-Allow-Headers' 'Authorization, Content-Type' always;
+
+        if ($request_method = OPTIONS) {
+            return 204;
+        }
+    }
+}

@@ -35,25 +35,36 @@ export async function apiPost<T>(path: string, body?: any): Promise<T> {
   const { baseUrl } = await getCredentials();
   const base = baseUrl || CONFIG.API_BASE_URL;
   const url = buildRequestUrl(base, path);
-  const controller = new AbortController();
-  const timeoutMs = 15000; // 15s
-  const t = setTimeout(() => controller.abort(), timeoutMs);
-  let res: Response;
-  try {
-    res = await fetch(url, {
-      method: 'POST',
-      headers: await buildHeaders(),
-      body: body ? JSON.stringify(body) : '{}',
-      signal: controller.signal,
-    } as RequestInit);
-  } catch (e: any) {
-    clearTimeout(t);
-    if (e?.name === 'AbortError') {
-      throw new Error(`Request timeout after ${timeoutMs / 1000}s: ${url}`);
+  const timeoutMs = 30000; // 30s
+  let res: Response | null = null;
+  let lastErr: any = null;
+  for (let attempt = 1; attempt <= 2; attempt++) {
+    const controller = new AbortController();
+    const t = setTimeout(() => controller.abort(), timeoutMs);
+    try {
+      res = await fetch(url, {
+        method: 'POST',
+        headers: await buildHeaders(),
+        body: body ? JSON.stringify(body) : '{}',
+        signal: controller.signal,
+      } as RequestInit);
+      clearTimeout(t);
+      break; // success
+    } catch (e: any) {
+      clearTimeout(t);
+      lastErr = e;
+      const isTimeout = e?.name === 'AbortError' || /timeout/i.test(String(e?.message || ''));
+      const isNet = /Network error|Failed to fetch/i.test(String(e?.message || ''));
+      if (attempt === 2 || (!isTimeout && !isNet)) {
+        if (e?.name === 'AbortError') throw new Error(`Request timeout after ${timeoutMs / 1000}s: ${url}`);
+        throw new Error(`Network error calling ${url}: ${e?.message || e}`);
+      }
+      // small backoff before retry
+      await new Promise((r) => setTimeout(r, 500));
     }
-    throw new Error(`Network error calling ${url}: ${e?.message || e}`);
-  } finally {
-    clearTimeout(t);
+  }
+  if (!res) {
+    throw new Error(`Network error calling ${url}: ${lastErr?.message || lastErr || 'unknown'}`);
   }
   const text = await res.text();
   if (!res.ok) {
